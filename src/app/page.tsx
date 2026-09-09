@@ -388,29 +388,14 @@ export default function HomePage() {
             </p>
             <h2 className="mt-2 text-[22px] font-bold text-[#f5f5f5]">Available agents</h2>
           </div>
-          {/* Same row, same height either way — the loading cue never moves the layout. */}
-          <p
-            aria-live="polite"
-            className="hidden items-center gap-2 text-[11px] text-[#666] sm:flex"
-          >
-            {refreshing ? (
-              <>
-                <span className="h-3 w-3 animate-spin border border-[#2f2f2f] border-t-[#F0B90B]" />
-                LOADING AGENTS
-              </>
-            ) : (
-              // Was "FEEDBACK HISTORY REQUIRED", which is not what the filter does
-              // and is not true of this registry: 6 of 303,461 BSC agents have ever
-              // been rated, so a feedback requirement would empty the marketplace.
-              // What is actually required is a reachable endpoint on a declared
-              // protocol — state that, and the line becomes evidence of curation
-              // rather than a claim that does not survive a spot check.
-              "LIVE ENDPOINT REQUIRED"
-            )}
+          {/* Static: the middle of the page already carries the loading state,
+              so this never swaps to a spinner. */}
+          <p className="hidden items-center gap-2 text-[11px] text-[#666] sm:flex">
+            LIVE ENDPOINT REQUIRED
           </p>
         </div>
         {loading && visible.length === 0 ? (
-          <div className="deck-frame flex min-h-[420px] flex-col items-center justify-center gap-4 border border-[#2f2f2f] bg-[#141414]">
+          <div className="flex min-h-[420px] flex-col items-center justify-center gap-4">
             <div className="h-5 w-5 animate-spin border-2 border-[#2f2f2f] border-t-[#F0B90B]" />
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[#666]">
               Loading agents…
