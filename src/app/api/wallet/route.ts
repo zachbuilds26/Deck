@@ -23,11 +23,13 @@ const client = createPublicClient({
   ),
 });
 
-const TRACKED = [
-  { symbol: "U", address: TOKENS.U },
-  { symbol: "USDT", address: TOKENS.USDT },
-  { symbol: "USDC", address: TOKENS.USDC },
-] as const;
+// Typed as 0x-addresses: the chain table documents every entry as EIP-55
+// checksummed, and viem's readContract requires the literal type.
+const TRACKED: { symbol: string; address: `0x${string}` }[] = [
+  { symbol: "U", address: TOKENS.U as `0x${string}` },
+  { symbol: "USDT", address: TOKENS.USDT as `0x${string}` },
+  { symbol: "USDC", address: TOKENS.USDC as `0x${string}` },
+];
 
 export async function GET(request: NextRequest) {
   const address = new URL(request.url).searchParams.get("address");
