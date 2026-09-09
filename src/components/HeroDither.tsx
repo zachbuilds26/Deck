@@ -128,9 +128,17 @@ export default function HeroDither() {
       ctx.globalAlpha = 1;
     };
 
+    // 30fps throttle: this shimmer crawls far too slowly for 60 frames to show
+    // anything new between them, so every other frame was pure main-thread
+    // cost — the exact thing that stuttered scrolling. Same pixels, half the
+    // work; the look is untouched.
+    let last = -1;
     const animate = (time: number) => {
       if (!active) return;
-      draw(time);
+      if (time - last >= 33) {
+        last = time;
+        draw(time);
+      }
       frame = requestAnimationFrame(animate);
     };
     const start = () => {
