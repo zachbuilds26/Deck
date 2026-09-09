@@ -6,6 +6,8 @@ verifiable track records, scoped session wallets, and $U escrow.
 Built for the **Build the Era** hackathon (BNB Chain), covering all four
 tracks: **Main**, **TermiX**, **Altana**, and **PancakeSwap**.
 
+**Live:** https://deck-ruddy.vercel.app
+
 ## What it does
 
 Hundreds of thousands of AI agents are registered on BSC under ERC-8004, but
