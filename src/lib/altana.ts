@@ -71,7 +71,7 @@ export function createAltanaClient(): Client {
  */
 export async function createPasskeyWallet(
   client: Client,
-  name: string = "Deck Wallet"
+  name: string = "Altana Wallet"
 ): Promise<{ wallet: Wallet; signer: Signer; address: `0x${string}`; credential?: PasskeyCredential }> {
   const result = await client.createPasskeyWallet({ name });
   return {

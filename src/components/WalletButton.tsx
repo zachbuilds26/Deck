@@ -49,7 +49,7 @@ async function recoverExisting(): Promise<ConnectedWallet> {
 
 async function createFresh(): Promise<ConnectedWallet> {
   const client = createAltanaClient();
-  const result = await client.createPasskeyWallet({ name: "Deck Wallet" });
+  const result = await client.createPasskeyWallet({ name: "Altana Wallet" });
   // Persisted now, not later: this handle is the only way back in before the
   // first transaction writes anything onchain. Public key + id only — the
   // private key stays in the device authenticator.
