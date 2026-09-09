@@ -6,6 +6,7 @@ import ExternalArrow from "@/components/ExternalArrow";
 import { formatEther } from "viem";
 import { BSCSCAN_URL } from "@/lib/constants";
 import { BSC_CHAIN_ID } from "@/lib/constants";
+import { createAltanaClient, settleJob } from "@/lib/altana";
 import { getJobsSnapshot, subscribeJobs, NO_JOBS, type StoredJob } from "@/lib/job-store";
 import {
   getConnectedWallet,
@@ -116,6 +117,8 @@ export default function JobsList() {
   );
 
   const [chain, setChain] = useState<Record<string, ChainState>>({});
+  const [acting, setActing] = useState<{ jobId: string; action: "approve" | "dispute" } | null>(null);
+  const [actError, setActError] = useState<Record<string, string>>({});
 
   const mine = wallet
     ? jobs.filter((job) => job.buyerAddress.toLowerCase() === wallet.address.toLowerCase())
@@ -166,6 +169,38 @@ export default function JobsList() {
   useEffect(() => {
     if (ids) void refresh(ids.split(","));
   }, [ids, refresh]);
+
+  /**
+   * Release (approve) or contest (dispute) a submitted job's escrow. One
+   * wallet signature each, then the status is re-read from the chain — which
+   * is also what feeds the Advantage auto-submit on COMPLETED.
+   */
+  async function act(job: StoredJob, action: "approve" | "dispute") {
+    if (!wallet || acting) return;
+    setActing({ jobId: job.jobId, action });
+    setActError((prev) => {
+      const next = { ...prev };
+      delete next[job.jobId];
+      return next;
+    });
+    try {
+      await settleJob(
+        createAltanaClient(),
+        wallet.wallet,
+        wallet.signer,
+        BigInt(job.jobId),
+        action
+      );
+      await refresh([job.jobId]);
+    } catch (caught) {
+      setActError((prev) => ({
+        ...prev,
+        [job.jobId]: caught instanceof Error ? caught.message : "Action failed.",
+      }));
+    } finally {
+      setActing(null);
+    }
+  }
 
   if (!wallet) {
     return (
@@ -219,7 +254,31 @@ export default function JobsList() {
                 </p>
               </div>
 
-              <div className="flex shrink-0 items-center gap-3">
+              <div className="flex shrink-0 flex-wrap items-center gap-3">
+                {status === "SUBMITTED" && wallet && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => act(job, "approve")}
+                      disabled={acting !== null}
+                      className="chamfer-sm h-9 bg-[#F0B90B] px-4 text-[11px] font-bold text-black transition-[transform,opacity] enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {acting?.jobId === job.jobId && acting.action === "approve"
+                        ? "Releasing…"
+                        : "Release escrow"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => act(job, "dispute")}
+                      disabled={acting !== null}
+                      className="h-9 shrink-0 px-1 text-[11px] font-bold text-[#ff8d8d] underline-offset-4 transition-colors hover:underline disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:no-underline"
+                    >
+                      {acting?.jobId === job.jobId && acting.action === "dispute"
+                        ? "Disputing…"
+                        : "Dispute"}
+                    </button>
+                  </>
+                )}
                 {state?.deliverableUrl && (
                   <a
                     href={state.deliverableUrl}
@@ -252,6 +311,11 @@ export default function JobsList() {
             {state?.error && (
               <p role="alert" className="mt-3 text-[11px] leading-5 text-[#e8b339]">
                 Could not read this job onchain — {state.error}
+              </p>
+            )}
+            {actError[job.jobId] && (
+              <p role="alert" className="mt-3 text-[11px] leading-5 text-[#ff8d8d]">
+                {actError[job.jobId]}
               </p>
             )}
           </article>

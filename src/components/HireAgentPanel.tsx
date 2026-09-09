@@ -24,7 +24,8 @@ import {
   type Eip1193Provider,
 } from "@/lib/browser-wallet";
 import { CONTRACTS } from "@/lib/contracts";
-import { BSC_CHAIN_ID, BSCSCAN_URL } from "@/lib/constants";
+import { AGENT_CATEGORIES, BSC_CHAIN_ID, BSCSCAN_URL } from "@/lib/constants";
+import { agentMatchesKeywords } from "@/lib/agent-status";
 import {
   formatWallet,
   getConnectedWallet,
@@ -175,6 +176,32 @@ function rememberWalletRdns(rdns: string): void {
 function trimBnb(value: string): string {
   const num = Number(value);
   return Number.isFinite(num) ? num.toFixed(4) : value;
+}
+
+/**
+ * Example brief matched to the agent: a rebalancer gets an LP brief, a grid
+ * trader a grid brief. One generic placeholder told every agent to rebalance
+ * PancakeSwap ranges — including the ones that have never seen a pool.
+ */
+const TASK_EXAMPLES: Record<string, string> = {
+  rebalancing:
+    "e.g. Rebalance my PancakeSwap V3 position into the 580–640 BNB band and keep it in range for a week. Report gas spent.",
+  "grid-trading":
+    "e.g. Run a grid strategy on BNB/USDT between 580 and 640 with 10 grids for two weeks. Report fills and PnL.",
+  "yield-optimisation":
+    "e.g. Route 500 USDT to the highest-APR Venus or PancakeSwap pool and report the yield after a week.",
+  "health-factor":
+    "e.g. Watch my Venus BNB position and act before health factor drops below 1.2. Alert on every action.",
+};
+
+function exampleFor(agent: Agent): string {
+  const match = AGENT_CATEGORIES.find((category) =>
+    agentMatchesKeywords(agent, [...category.keywords])
+  );
+  return (
+    (match && TASK_EXAMPLES[match.id]) ||
+    "e.g. Describe the outcome, the constraints, and what success looks like. Be specific — this is what settlement is judged against."
+  );
 }
 
 /** A positive finite number, or undefined for blank/invalid. Baselines are
@@ -616,7 +643,7 @@ export default function HireAgentPanel({ agent }: { agent: Agent }) {
             value={task}
             onChange={(event) => setTask(event.target.value)}
             aria-label="Scope of work"
-            placeholder="e.g. Rebalance my PancakeSwap V3 position into the 580–640 BNB band and keep it in range for a week. Report gas spent."
+            placeholder={exampleFor(agent)}
             className="min-h-[184px] w-full resize-y border border-[#2f2f2f] bg-black p-3.5 text-[12px] leading-6 text-[#f5f5f5] placeholder:text-[#555] focus:border-[#F0B90B] focus:outline-none"
           />
           <div className="mt-5 border-t border-[#242424] pt-5">
