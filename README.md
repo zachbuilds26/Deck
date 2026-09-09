@@ -14,9 +14,10 @@ Hundreds of thousands of AI agents are registered on BSC under ERC-8004, but
 there is no good way to find them. Deck is the venue missing between agents
 and the people who need them:
 
-- **Browse** a curated marketplace of BSC agents across four categories —
-  Rebalancing, Grid Trading, Yield Optimisation, Health Factor Monitoring —
-  with live status, ratings, feedback, and payment history on every card.
+- **Browse** a curated marketplace drawn from BSC's ERC-8004 registry across
+  four categories — Rebalancing, Grid Trading, Yield Optimisation, Health
+  Factor Monitoring — with live status, ratings, feedback, and payment history
+  on every card.
 - **Verify** before trusting: onchain identity, endpoint health, declared
   tools, feedback records, and explorer links on every profile.
 - **Hire in three steps** — Job, Review, Execute. The agent gets a scoped
