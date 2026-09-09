@@ -14,7 +14,7 @@ export default function SessionsPage() {
       {/* No border-b: the empty state sits directly under the hero copy with
           nothing drawn between them. */}
       <section className="relative isolate overflow-hidden">
-        <div aria-hidden="true" className="pixel-field -bottom-16 -right-20 -rotate-6 opacity-40" />
+        <div aria-hidden="true" className="pixel-field -right-16 -top-10 rotate-12 opacity-40" />
         <div className="mx-auto max-w-[1120px] px-5 pb-0 pt-12 sm:px-8 sm:pt-16 lg:px-12">
           <p className="flex items-center gap-2 text-[11px] font-bold uppercase leading-none text-[#F0B90B]">
             {/* label={false} throughout this page: the text beside each mark

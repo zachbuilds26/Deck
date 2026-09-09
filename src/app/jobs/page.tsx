@@ -9,7 +9,8 @@ export const metadata: Metadata = {
 
 export default function JobsPage() {
   return (
-    <div className="mx-auto min-h-screen max-w-[900px] px-5 py-12 sm:px-8 sm:py-16">
+    <div className="relative mx-auto min-h-screen max-w-[1120px] px-5 py-12 sm:px-8 sm:py-16 lg:px-12">
+      <div aria-hidden="true" className="pixel-field -right-16 -top-10 rotate-12 opacity-40" />
       <p className="flex items-center gap-2 text-[10px] font-bold uppercase leading-none text-[#666]">
         <BrandMark id="bnb" size={15} label={false} />
         ERC-8183 Escrow / Onchain

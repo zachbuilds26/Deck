@@ -214,7 +214,7 @@ export default function JobsList() {
                     {status ?? (state?.error ? "Unreadable" : "Reading…")}
                   </span>
                 </div>
-                <p className="mt-1 text-[10px] uppercase tracking-wide text-[#666]">
+                <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-[#999]">
                   Job {job.jobId} · {formatEther(BigInt(job.budgetWei))} $U escrowed
                 </p>
               </div>

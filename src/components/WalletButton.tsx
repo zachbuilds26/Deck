@@ -149,7 +149,9 @@ export default function WalletButton({ mobile = false }: { mobile?: boolean }) {
     ? "mt-2 h-11 w-full text-[13px] font-bold"
     : "hidden h-10 px-4 text-[13px] font-bold md:block";
   const accentClasses = `chamfer ${baseClasses} bg-[#F0B90B] text-black transition-[transform,opacity] enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60`;
-  const quietClasses = `${baseClasses} border border-[#2f2f2f] text-[#f5f5f5] transition-colors hover:border-[#666]`;
+  // Boxless when connected: plain address, underline on hover as the menu
+  // affordance — same text-button language as Revoke.
+  const quietClasses = `${baseClasses} text-[#f5f5f5] underline-offset-4 transition-colors hover:text-white hover:underline`;
 
   const label = useMemo(() => {
     if (busy) return offerCreate ? "Creating…" : "Unlocking…";

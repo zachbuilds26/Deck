@@ -764,9 +764,7 @@ export default function HireAgentPanel({ agent }: { agent: Agent }) {
           {wallet && balance !== null && (!funded || !bnbReady || !budgetValid) && (
             <div className="mt-3 border border-[#3a2f08] bg-[#100d04] p-3">
               <p className="text-[11px] leading-5 text-[#e8b339]">
-                Top up the passkey wallet from your extension wallet — the $U budget
-                plus ~0.003 BNB for the Keystore registration fee. One confirm per
-                transfer, no copy-paste.
+                Short — top up from your browser wallet.
               </p>
               {!budgetValid ? (
                 <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">

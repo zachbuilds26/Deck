@@ -173,7 +173,7 @@ export default function SessionsList() {
                       ? `Confirm revoking ${entry.agentName}`
                       : `Revoke ${entry.agentName}`
                   }
-                  className="h-9 shrink-0 border border-[#5c2427] px-4 text-[11px] font-bold text-[#ff8d8d] transition-colors hover:border-[#8a3439] hover:bg-[#1a0d0e] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="h-9 shrink-0 px-1 text-[11px] font-bold text-[#ff8d8d] underline-offset-4 transition-colors hover:underline disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:no-underline"
                 >
                   {revoking === entry.publicKey
                     ? "Revoking…"
