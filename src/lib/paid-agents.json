@@ -1,0 +1,73 @@
+{
+  "generatedAt": "2026-09-05T02:17:40Z",
+  "chainId": 56,
+  "tag": "q402-weekly",
+  "recordsScanned": 3100,
+  "agents": {
+    "120411": {
+      "payments": 5,
+      "weeks": 3,
+      "name": "Samie"
+    },
+    "120036": {
+      "payments": 3,
+      "weeks": 2,
+      "name": "REXTER Q402 Testing"
+    },
+    "120381": {
+      "payments": 3,
+      "weeks": 2,
+      "name": "Erin's Agent Q"
+    },
+    "120332": {
+      "payments": 2,
+      "weeks": 2,
+      "name": "Agnet 121"
+    },
+    "167692": {
+      "payments": 2,
+      "weeks": 1,
+      "name": "Q402 Agent (by Quack AI)"
+    },
+    "140561": {
+      "payments": 2,
+      "weeks": 1,
+      "name": "Q402 Agent (by Quack AI)"
+    },
+    "120986": {
+      "payments": 2,
+      "weeks": 1,
+      "name": "Erin Agent"
+    },
+    "119894": {
+      "payments": 2,
+      "weeks": 1,
+      "name": "Agent Q"
+    },
+    "168217": {
+      "payments": 1,
+      "weeks": 1,
+      "name": "Q402 Agent (by Quack AI)"
+    },
+    "169235": {
+      "payments": 1,
+      "weeks": 1,
+      "name": "Q402 Agent (by Quack AI)"
+    },
+    "166601": {
+      "payments": 1,
+      "weeks": 1,
+      "name": "Q402 Agent (by Quack AI)"
+    },
+    "121490": {
+      "payments": 1,
+      "weeks": 1,
+      "name": "Agent Crex"
+    },
+    "120331": {
+      "payments": 1,
+      "weeks": 1,
+      "name": "My Agent Q"
+    }
+  }
+}
