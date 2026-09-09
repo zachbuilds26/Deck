@@ -175,7 +175,15 @@ export default function WalletButton({ mobile = false }: { mobile?: boolean }) {
       setOfferCreate(false);
     } catch (caught) {
       if (isCancellation(caught)) {
-        setError("Passkey prompt was dismissed.");
+        // Dismissing the search means the same as finding nothing: offer
+        // creation. Otherwise a fresh device loops Connect → dismiss forever,
+        // because the button never flips to "Create wallet".
+        setOfferCreate(true);
+        setError(
+          offerCreate
+            ? "Passkey prompt was dismissed."
+            : "Nothing to unlock yet — tap Create wallet to make one."
+        );
       } else if (offerCreate) {
         setError("Could not create a wallet. Your browser must support passkeys.");
       } else if (isUntransactedWallet(caught)) {
