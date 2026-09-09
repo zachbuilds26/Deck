@@ -41,6 +41,9 @@ data/
 .chrome-*/
 .edge-*/
 
+# stray build output anywhere (a dev artifact once landed in public/)
+**/.next/
+
 /*.png
 
 # vercel
