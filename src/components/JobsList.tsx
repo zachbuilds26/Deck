@@ -32,6 +32,29 @@ type ChainState = {
 };
 
 const SUBMITTED_KEY = "deck-advantage-submitted";
+const RECLAIMED_KEY = "deck-refunded-jobs";
+
+function loadReclaimed(): string[] {
+  try {
+    const raw = window.localStorage.getItem(RECLAIMED_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The kernel's WrongStatus selector. On the refund path it means exactly one
+ * thing: this job already left Funded (claimed, settled, disputed) — there is
+ * nothing left to pull. Shown as fact, never as a hex dump.
+ */
+const ALREADY_CLAIMED_SELECTOR = "0x8e78f0cb";
+
+function isAlreadyClaimed(error: unknown): boolean {
+  const text = error instanceof Error ? error.message : String(error ?? "");
+  return text.toLowerCase().includes(ALREADY_CLAIMED_SELECTOR);
+}
 
 /** Job ids already sent to /api/advantage. A failed POST stays unmarked, so
  *  the next visit retries it. */
@@ -122,15 +145,33 @@ export default function JobsList() {
     jobId: string;
     action: "approve" | "dispute" | "refund";
   } | null>(null);
+  // Jobs whose escrow already came home. The kernel leaves the budget field
+  // untouched on refund, so "claimed" is invisible onchain — this memory is
+  // what retires the button instead of letting it revert forever.
+  const [claimed, setClaimed] = useState<string[]>(loadReclaimed);
 
   /** Past deadline, unspent, unsettled: the escrow is reclaimable. Never shown
-   *  for settled jobs (nothing left to claim) or submitted ones (settle the
-   *  deliverable instead). */
-  function isRefundable(state: ChainState | undefined): boolean {
+   *  for settled jobs (nothing left to claim), submitted ones (settle the
+   *  deliverable instead), or jobs already pulled home this session. */
+  function isRefundable(jobId: string, state: ChainState | undefined): boolean {
+    if (claimed.includes(jobId)) return false;
     if (!state?.status || !state.expiredAt) return false;
     if (state.status === "COMPLETED" || state.status === "REJECTED") return false;
     if (state.status === "SUBMITTED") return false;
     return Date.now() > Date.parse(state.expiredAt);
+  }
+
+  function markClaimed(jobId: string): void {
+    setClaimed((prev) => {
+      if (prev.includes(jobId)) return prev;
+      const next = [...prev, jobId];
+      try {
+        window.localStorage.setItem(RECLAIMED_KEY, JSON.stringify(next));
+      } catch {
+        // Memory still retires the button for this session.
+      }
+      return next;
+    });
   }
   const [actError, setActError] = useState<Record<string, string>>({});
 
@@ -206,6 +247,7 @@ export default function JobsList() {
           wallet.signer,
           BigInt(job.jobId)
         );
+        markClaimed(job.jobId);
       } else {
         await settleJob(
           createAltanaClient(),
@@ -217,10 +259,21 @@ export default function JobsList() {
       }
       await refresh([job.jobId]);
     } catch (caught) {
-      setActError((prev) => ({
-        ...prev,
-        [job.jobId]: caught instanceof Error ? caught.message : "Action failed.",
-      }));
+      // Already home: the kernel rejects repeat claims with WrongStatus, so a
+      // repeat is proof of success, not failure — retire the button and say so.
+      if (action === "refund" && isAlreadyClaimed(caught)) {
+        markClaimed(job.jobId);
+        setActError((prev) => {
+          const next = { ...prev };
+          delete next[job.jobId];
+          return next;
+        });
+      } else {
+        setActError((prev) => ({
+          ...prev,
+          [job.jobId]: caught instanceof Error ? caught.message : "Action failed.",
+        }));
+      }
     } finally {
       setActing(null);
     }
@@ -325,16 +378,23 @@ export default function JobsList() {
                     <ExternalArrow />
                   </a>
                 )}
-                {isRefundable(state) && wallet && (
-                  <button
-                    type="button"
-                    onClick={() => act(job, "refund")}
-                    disabled={acting !== null}
-                    title="Deadline passed with no delivery — pull the escrow back"
-                    className="chamfer-sm h-9 border border-[#5c4a10] px-4 text-[11px] font-bold text-[#F0B90B] transition-colors hover:border-[#8a6f18] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {acting?.jobId === job.jobId ? "Reclaiming…" : "Reclaim escrow"}
-                  </button>
+                {claimed.includes(job.jobId) ? (
+                  <span className="flex h-9 items-center gap-1.5 text-[11px] font-bold uppercase text-[#33fba1]">
+                    <span aria-hidden="true">✓</span> Reclaimed
+                  </span>
+                ) : (
+                  isRefundable(job.jobId, state) &&
+                  wallet && (
+                    <button
+                      type="button"
+                      onClick={() => act(job, "refund")}
+                      disabled={acting !== null}
+                      title="Deadline passed with no delivery — pull the escrow back"
+                      className="chamfer-sm h-9 border border-[#5c4a10] px-4 text-[11px] font-bold text-[#F0B90B] transition-colors hover:border-[#8a6f18] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {acting?.jobId === job.jobId ? "Reclaiming…" : "Reclaim escrow"}
+                    </button>
+                  )
                 )}
               </div>
             </div>
