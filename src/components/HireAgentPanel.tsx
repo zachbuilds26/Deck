@@ -940,7 +940,8 @@ export default function HireAgentPanel({ agent }: { agent: Agent }) {
             <SummaryRow label="Agent" value={agent.name} />
             <SummaryRow label="Spend cap" value={budgetValid ? `${budget} $U` : "—"} />
             <SummaryRow label="Keystore fee" value="~0.0013 BNB" />
-            <SummaryRow label="Expires" value={`in ${EXPIRY_DAYS} days`} />
+            <SummaryRow label="Session expiry" value={`in ${EXPIRY_DAYS} days`} />
+            <SummaryRow label="Job deadline" value="~24 hours, then refundable" />
           </div>
           <div className="mt-4 border border-[#2f2f2f] bg-black p-3.5">
             <p className="text-[10px] font-bold uppercase text-[#666]">The job</p>
