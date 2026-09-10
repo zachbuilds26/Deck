@@ -34,6 +34,23 @@ type ChainState = {
 const SUBMITTED_KEY = "deck-advantage-submitted";
 const RECLAIMED_KEY = "deck-refunded-jobs";
 
+/**
+ * The escrow fuse, in words. Static as of page load (the page re-reads the
+ * chain on every visit, so it never goes stale by much). Exists because a
+ * ~1h fuse and a ~24h fuse look identical until one of them surprises you.
+ */
+function fuseLabel(expiredAt?: string): string | null {
+  if (!expiredAt) return null;
+  const ms = Date.parse(expiredAt) - Date.now();
+  if (!Number.isFinite(ms)) return null;
+  if (ms <= 0) return "Past deadline";
+  const hours = Math.floor(ms / 3_600_000);
+  const minutes = Math.floor((ms % 3_600_000) / 60_000);
+  if (hours > 0) return `Funds free in ~${hours}h ${minutes}m`;
+  if (minutes > 0) return `Funds free in ~${minutes}m`;
+  return "Funds free soon";
+}
+
 function loadReclaimed(): string[] {
   try {
     const raw = window.localStorage.getItem(RECLAIMED_KEY);
@@ -329,6 +346,11 @@ export default function JobsList() {
                 <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-[#999]">
                   Job {job.jobId} · {formatEther(BigInt(job.budgetWei))} $U escrowed
                 </p>
+                {status === "FUNDED" && fuseLabel(state?.expiredAt) && (
+                  <p className="mt-1 text-[10px] uppercase tracking-wide text-[#8f8f8f]">
+                    {fuseLabel(state?.expiredAt)}
+                  </p>
+                )}
               </div>
 
               <div className="flex shrink-0 flex-wrap items-center gap-3">
