@@ -82,6 +82,8 @@ export interface Job {
   budget: string;
   status: JobStatus;
   deliverableUrl?: string;
+  /** Past this time an undelivered job's escrow is reclaimable. ISO string. */
+  expiredAt?: string;
   createdAt: string;
   fundedAt?: string;
   submittedAt?: string;

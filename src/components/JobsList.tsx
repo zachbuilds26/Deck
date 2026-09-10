@@ -6,7 +6,7 @@ import ExternalArrow from "@/components/ExternalArrow";
 import { formatEther } from "viem";
 import { BSCSCAN_URL } from "@/lib/constants";
 import { BSC_CHAIN_ID } from "@/lib/constants";
-import { createAltanaClient, settleJob } from "@/lib/altana";
+import { claimJobRefund, createAltanaClient, settleJob } from "@/lib/altana";
 import { getJobsSnapshot, subscribeJobs, NO_JOBS, type StoredJob } from "@/lib/job-store";
 import {
   getConnectedWallet,
@@ -27,6 +27,7 @@ const STATUS_STYLES: Record<string, { dot: string; text: string }> = {
 type ChainState = {
   status?: JobStatus;
   deliverableUrl?: string;
+  expiredAt?: string;
   error?: string;
 };
 
@@ -117,7 +118,20 @@ export default function JobsList() {
   );
 
   const [chain, setChain] = useState<Record<string, ChainState>>({});
-  const [acting, setActing] = useState<{ jobId: string; action: "approve" | "dispute" } | null>(null);
+  const [acting, setActing] = useState<{
+    jobId: string;
+    action: "approve" | "dispute" | "refund";
+  } | null>(null);
+
+  /** Past deadline, unspent, unsettled: the escrow is reclaimable. Never shown
+   *  for settled jobs (nothing left to claim) or submitted ones (settle the
+   *  deliverable instead). */
+  function isRefundable(state: ChainState | undefined): boolean {
+    if (!state?.status || !state.expiredAt) return false;
+    if (state.status === "COMPLETED" || state.status === "REJECTED") return false;
+    if (state.status === "SUBMITTED") return false;
+    return Date.now() > Date.parse(state.expiredAt);
+  }
   const [actError, setActError] = useState<Record<string, string>>({});
 
   const mine = wallet
@@ -142,6 +156,7 @@ export default function JobsList() {
           const state: ChainState = {
             status: payload.data?.status,
             deliverableUrl: payload.data?.deliverableUrl,
+            expiredAt: payload.data?.expiredAt,
           };
           setChain((prev) => ({ ...prev, [job.jobId]: state }));
           return { job, state };
@@ -175,7 +190,7 @@ export default function JobsList() {
    * wallet signature each, then the status is re-read from the chain — which
    * is also what feeds the Advantage auto-submit on COMPLETED.
    */
-  async function act(job: StoredJob, action: "approve" | "dispute") {
+  async function act(job: StoredJob, action: "approve" | "dispute" | "refund") {
     if (!wallet || acting) return;
     setActing({ jobId: job.jobId, action });
     setActError((prev) => {
@@ -184,13 +199,22 @@ export default function JobsList() {
       return next;
     });
     try {
-      await settleJob(
-        createAltanaClient(),
-        wallet.wallet,
-        wallet.signer,
-        BigInt(job.jobId),
-        action
-      );
+      if (action === "refund") {
+        await claimJobRefund(
+          createAltanaClient(),
+          wallet.wallet,
+          wallet.signer,
+          BigInt(job.jobId)
+        );
+      } else {
+        await settleJob(
+          createAltanaClient(),
+          wallet.wallet,
+          wallet.signer,
+          BigInt(job.jobId),
+          action
+        );
+      }
       await refresh([job.jobId]);
     } catch (caught) {
       setActError((prev) => ({
@@ -300,6 +324,17 @@ export default function JobsList() {
                     Funding tx
                     <ExternalArrow />
                   </a>
+                )}
+                {isRefundable(state) && wallet && (
+                  <button
+                    type="button"
+                    onClick={() => act(job, "refund")}
+                    disabled={acting !== null}
+                    title="Deadline passed with no delivery — pull the escrow back"
+                    className="chamfer-sm h-9 border border-[#5c4a10] px-4 text-[11px] font-bold text-[#F0B90B] transition-colors hover:border-[#8a6f18] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {acting?.jobId === job.jobId ? "Reclaiming…" : "Reclaim escrow"}
+                  </button>
                 )}
               </div>
             </div>

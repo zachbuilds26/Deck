@@ -292,6 +292,26 @@ export function getClaimRefundCall(jobId: bigint) {
 }
 
 /**
+ * Reclaim escrow from an expired, undelivered job. Goes through the wallet
+ * like everything else — one signature, relay-executed.
+ */
+export async function claimJobRefund(
+  client: Client,
+  wallet: Wallet,
+  signer: Signer,
+  jobId: bigint
+): Promise<{ transactionHash?: Hex }> {
+  const call = getClaimRefundCall(jobId);
+  const result = await client.execute({
+    wallet,
+    signer,
+    calls: [call],
+    chainId: BSC_CHAIN_ID,
+  });
+  return result as { transactionHash?: Hex };
+}
+
+/**
  * Get ERC-8183 contract addresses for a chain.
  */
 export function getErc8183ContractAddresses(chainId: number = BSC_CHAIN_ID) {

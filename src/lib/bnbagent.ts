@@ -66,6 +66,8 @@ export function sdkJobToAppJob(sdkJob: Erc8183Job): Job {
     budget: sdkJob.budget.toString(),
     status: sdkJob.statusName,
     deliverableUrl: undefined, // fetched separately
+    expiredAt:
+      sdkJob.expiredAt > 0n ? new Date(Number(sdkJob.expiredAt) * 1000).toISOString() : undefined,
     createdAt: "",
     fundedAt: undefined,
     submittedAt: sdkJob.submittedAt > 0n ? new Date(Number(sdkJob.submittedAt) * 1000).toISOString() : undefined,
