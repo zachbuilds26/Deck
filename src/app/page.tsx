@@ -82,6 +82,7 @@ export default function HomePage() {
   const [category, setCategory] = useState(cached?.category ?? "all");
   const [searchQuery, setSearchQuery] = useState(cached?.searchQuery ?? "");
   const [sortBy, setSortBy] = useState(cached?.sortBy ?? "default");
+  const [liveOnly, setLiveOnly] = useState(cached?.liveOnly ?? false);
   const [loadError, setLoadError] = useState<string | null>(null);
   /** Set when the agents on screen came from the committed snapshot rather than
    *  the live registry. Shown, never hidden — cached data presented as current is
@@ -214,10 +215,11 @@ export default function HomePage() {
       category,
       searchQuery,
       sortBy,
+      liveOnly,
       hasMore,
       page: pageRef.current,
     });
-  }, [agents, category, searchQuery, sortBy, hasMore]);
+  }, [agents, category, searchQuery, sortBy, liveOnly, hasMore]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -289,7 +291,8 @@ export default function HomePage() {
   // Sorts double as filters: picking one shows only agents that qualify —
   // paid means paid, rated means rated, feedback means feedback. Newest is
   // pure order (every agent has a registration date). Default shows everything.
-  const visible =
+  // Live-only applies on top of whichever view is active.
+  const sorted =
     sortBy === "paid"
       ? displayed.filter((a) => (a.paidPayments ?? 0) > 0)
       : sortBy === "score"
@@ -297,6 +300,7 @@ export default function HomePage() {
         : sortBy === "feedback"
           ? displayed.filter((a) => a.feedbackCount > 0)
           : displayed;
+  const visible = liveOnly ? sorted.filter((a) => isLiveAgent(a)) : sorted;
 
   return (
     <div className="min-h-screen">
@@ -366,6 +370,8 @@ export default function HomePage() {
         }}
         sortBy={sortBy}
         onSortChange={setSortBy}
+        liveOnly={liveOnly}
+        onLiveOnlyChange={setLiveOnly}
       />
 
       <section id="agents" className="mx-auto max-w-[1440px] px-5 py-10 sm:px-8 lg:px-12">
@@ -448,6 +454,7 @@ export default function HomePage() {
                 setSearchQuery("");
                 setCategory("all");
                 setSortBy("default");
+                setLiveOnly(false);
               }}
               className="mt-6 h-10 border border-[#3c3c3c] px-5 text-[12px] font-semibold text-[#f5f5f5] transition-colors hover:border-[#666] hover:bg-[#1b1b1b]"
             >

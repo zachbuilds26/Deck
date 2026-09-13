@@ -31,9 +31,13 @@ function CategoryButton({
 function CategoryDropdown({
   activeCategory,
   onCategoryChange,
+  liveOnly,
+  onLiveOnlyChange,
 }: {
   activeCategory: string;
   onCategoryChange: (cat: string) => void;
+  liveOnly: boolean;
+  onLiveOnlyChange: (value: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const currentCategory = CATEGORIES.find((category) => category.id === activeCategory) || CATEGORIES[0];
@@ -91,6 +95,21 @@ function CategoryDropdown({
                 {category.label}
               </button>
             ))}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={liveOnly}
+              onClick={() => onLiveOnlyChange(!liveOnly)}
+              className={`flex w-full items-center gap-2 border-t border-[#2f2f2f] px-4 py-2.5 text-left text-xs transition-colors ${
+                liveOnly ? "text-[#F0B90B]" : "text-[#999] hover:bg-[#1c1c1c] hover:text-white"
+              }`}
+            >
+              <span
+                aria-hidden="true"
+                className={`h-1.5 w-1.5 rounded-full ${liveOnly ? "bg-[#33fba1]" : "bg-[#3a3a3a]"}`}
+              />
+              Live only{liveOnly ? " ✓" : ""}
+            </button>
           </div>
         </>
       )}
@@ -120,6 +139,8 @@ interface FilterBarProps {
   onCategoryChange: (cat: string) => void;
   sortBy: string;
   onSortChange: (sort: string) => void;
+  liveOnly: boolean;
+  onLiveOnlyChange: (value: boolean) => void;
 }
 
 export default function FilterBar({
@@ -129,6 +150,8 @@ export default function FilterBar({
   onCategoryChange,
   sortBy,
   onSortChange,
+  liveOnly,
+  onLiveOnlyChange,
 }: FilterBarProps) {
   const [sortOpen, setSortOpen] = useState(false);
   const currentSort = SORT_OPTIONS.find((s) => s.id === sortBy);
@@ -150,6 +173,8 @@ export default function FilterBar({
           <CategoryDropdown
             activeCategory={activeCategory}
             onCategoryChange={onCategoryChange}
+            liveOnly={liveOnly}
+            onLiveOnlyChange={onLiveOnlyChange}
           />
         </div>
 
@@ -160,6 +185,26 @@ export default function FilterBar({
         </label>
 
         <div className="flex flex-shrink-0 items-center gap-2 py-3">
+          {/* Strictness on demand: proven-answering only. Default stays
+              live-first ranking so discovery of unchecked agents survives. */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={liveOnly}
+            aria-label="Show only agents with live endpoints"
+            onClick={() => onLiveOnlyChange(!liveOnly)}
+            className={`hidden h-9 shrink-0 items-center gap-2 border px-3 text-[11px] font-bold transition-colors sm:inline-flex ${
+              liveOnly
+                ? "border-[#F0B90B] text-[#F0B90B]"
+                : "border-[#2f2f2f] text-[#666] hover:border-[#666] hover:text-[#999]"
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`h-1.5 w-1.5 rounded-full ${liveOnly ? "bg-[#33fba1]" : "bg-[#3a3a3a]"}`}
+            />
+            Live only
+          </button>
           <div
             className="relative"
             onKeyDown={(event) => {

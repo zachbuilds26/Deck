@@ -1,7 +1,9 @@
 import { SCAN8004_BASE_URL, CACHE_TTL, BSC_CHAIN_ID } from "./constants";
 import { agentMatchesKeywords } from "./agent-status";
+import { displayAgentId } from "./agent-id";
 import paidIndexFile from "./paid-agents.json";
 import agentSnapshot from "./agent-snapshot.json";
+import verifiedEndpointsFile from "./verified-endpoints.json";
 import type { Agent, AgentDetail, AgentFeedback } from "./types";
 
 // Simple in-memory cache
@@ -829,6 +831,59 @@ function snapshotAgents(chainId: number, category?: string): Agent[] {
     .sort(rankMarketplaceAgents);
 }
 
+/**
+ * Token ids whose declared endpoint answered a direct probe. The marketplace
+ * lists exactly these — verified working, not merely registered. A chain with
+ * an empty list falls back to the live scan behavior. Refresh by re-sweeping:
+ * pull details for the pool, extract mcp_server/a2a_endpoint/agent_url, GET
+ * each unique URL, keep the answering ones.
+ */
+function getVerifiedAllowlist(chainId: number): Set<string> | null {
+  const chains = (verifiedEndpointsFile.chains || {}) as Record<string, { tokenId: string }[]>;
+  const list = chains[String(chainId)] || [];
+  if (list.length === 0) return null;
+  return new Set(list.map((entry) => entry.tokenId));
+}
+
+/** Resolve allowlisted ids straight to agents. Chunked so a cold fill is a
+ *  controlled stream of reads, not a 51-wide burst. */
+const VERIFIED_RESOLVE_CONCURRENCY = 6;
+
+async function resolveVerifiedAgents(
+  chainId: number,
+  tokenIds: Set<string>
+): Promise<{ agents: Agent[]; failed: boolean }> {
+  const ids = [...tokenIds];
+  const resolved = new Map<string, Agent>();
+  let failed = false;
+  // Two passes: individual detail reads flake, and the same ids tend to flake
+  // repeatedly within one fill. A miss retried once almost always lands; a
+  // pool that settles short stays short until the next fill otherwise.
+  for (let pass = 0; pass < 2 && resolved.size < ids.length; pass += 1) {
+    const missing = ids.filter((id) => !resolved.has(id));
+    for (let start = 0; start < missing.length; start += VERIFIED_RESOLVE_CONCURRENCY) {
+      const chunk = await Promise.all(
+        missing.slice(start, start + VERIFIED_RESOLVE_CONCURRENCY).map(async (tokenId) => {
+          try {
+            const raw = await scanFetch<{ data?: Record<string, unknown> }>(
+              `/agents/${chainId}/${tokenId}`
+            );
+            return { tokenId, agent: mapAgent((raw.data || raw) as Record<string, unknown>) };
+          } catch (error) {
+            failed = true;
+            console.warn("Verified agent unresolvable:", tokenId, error);
+            return null;
+          }
+        })
+      );
+      for (const hit of chunk) {
+        if (hit) resolved.set(hit.tokenId, hit.agent);
+      }
+    }
+  }
+  return { agents: [...resolved.values()], failed };
+}
+
 // ============================================
 // PUBLIC API
 // ============================================
@@ -852,7 +907,12 @@ export async function listAgents(params?: {
   const requestedLimit = params?.limit || 20;
   const page = params?.page || 1;
   const category = params?.category && params.category !== "all" ? params.category : undefined;
-  const cacheKey = `executable-v28:${params?.chainId || BSC_CHAIN_ID}:${params?.owner || "all"}:${category || "all"}`;
+  const chainId = params?.chainId || BSC_CHAIN_ID;
+  // Owner-scoped views answer "what does this wallet own" and skip every
+  // opinionated layer: no paid seeding, no allowlist, full scan behavior.
+  const allowlist = !params?.owner ? getVerifiedAllowlist(chainId) : null;
+  const cacheKey = `verified-v29:${chainId}:${params?.owner || "all"}:${category || "all"}:${allowlist ? "allow" : "scan"}`;
+  let lastSourceError: unknown = null;
   let entry = qualityPageCache.get(cacheKey);
   if (!entry || Date.now() > entry.expires) {
     entry = {
@@ -867,13 +927,42 @@ export async function listAgents(params?: {
     // without this the marketplace never shows the agents with the best proof of
     // working. Owner-scoped views skip it: those answer "what does this wallet
     // own", where injecting someone else's agents would be wrong.
+    let paid: Agent[] = [];
     if (!params?.owner) {
       try {
-        const paid = await listPaidAgents(params?.chainId || BSC_CHAIN_ID);
-        entry.agents = paid.filter((agent) => matchesMarketplaceCategory(agent, category));
+        paid = await listPaidAgents(chainId);
+        if (!allowlist) {
+          entry.agents = paid.filter((agent) => matchesMarketplaceCategory(agent, category));
+        }
       } catch {
         // Ranking still works without it; an empty seed is not an error.
       }
+    }
+
+    // Deterministic mode: resolve exactly the verified set instead of
+    // scanning. No scan lottery, no thin fills, no strangers — the pool is
+    // the 51 every time. Paid records merge back in so badges and money-first
+    // ranking survive the explicit listing.
+    if (allowlist) {
+      const resolved = await resolveVerifiedAgents(chainId, allowlist);
+      if (resolved.agents.length === 0 && resolved.failed) {
+        lastSourceError = new ScanApiError(503, "Verified agents unreachable");
+      }
+      const paidById = new Map(paid.map((agent) => [displayAgentId(agent.agentId), agent]));
+      entry.agents = resolved.agents
+        .map((agent) => {
+          const record = paidById.get(displayAgentId(agent.agentId));
+          if (record) {
+            agent.paidPayments = record.paidPayments;
+            agent.paidWeeks = record.paidWeeks;
+          }
+          return agent;
+        })
+        .filter((agent) => isQualityAgent(agent, chainId))
+        .filter((agent) => matchesMarketplaceCategory(agent, params?.category));
+      entry.agents.sort(rankMarketplaceAgents);
+      entry.agents = avatarsFirst(deduplicateMarketplaceAgents(entry.agents));
+      entry.filled = true;
     }
   }
 
@@ -892,7 +981,6 @@ export async function listAgents(params?: {
   const targetCount = FULL_POOL_TARGET;
   let scanRounds = 0;
   let emptyRounds = 0;
-  let lastSourceError: unknown = null;
   while (
     !entry.filled &&
     entry.agents.length < targetCount &&
@@ -1091,21 +1179,16 @@ export async function searchAgents(
 
   const allAgents = (data.items || []).map(mapAgent);
 
-  // Search is EXHAUSTIVE where browsing is curated, and the split is deliberate.
-  //
-  // The default listing is the marketplace's editorial opinion — that curation is
-  // the product, and a registry of 300k+ where most entries are bulk persona
-  // profiles is not something a first-time visitor should be handed. But someone
-  // who types a name has already named what they want, and answering "no agents
-  // found" about an agent that plainly exists on BSC reads as broken rather than
-  // as taste.
-  //
-  // The id path above already worked this way. This is the same reasoning carried
-  // through to text: keep the chain check and the junk-name guard, drop the
-  // curation gates (image, declared protocol, description length).
+  // Text search stays inside the verified set, like browsing: with the
+  // marketplace committed to working endpoints only, a text hit outside it
+  // would be a stranger wearing a listing's clothes. The exact-id path above
+  // is exempt on purpose — a typed id names one agent, and answering "none"
+  // about an id that plainly exists reads as broken rather than as taste.
+  const allowlist = getVerifiedAllowlist(chainId);
   const hits = allAgents
     .filter((agent) => agent.chainId === chainId)
     .filter((agent) => isReadableName(agent.name))
+    .filter((agent) => !allowlist || allowlist.has(displayAgentId(agent.agentId)))
     .sort(rankMarketplaceAgents)
     .slice(0, limit);
 

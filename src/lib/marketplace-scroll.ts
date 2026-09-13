@@ -30,6 +30,7 @@ export interface MarketplaceList {
   category: string;
   searchQuery: string;
   sortBy: string;
+  liveOnly: boolean;
   hasMore: boolean;
   page: number;
 }
