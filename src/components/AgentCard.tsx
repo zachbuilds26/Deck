@@ -125,28 +125,7 @@ export default function AgentCard({ agent }: { agent: Agent }) {
           </span>
         )}
 
-        {agent.endpointVerified && (
-          <span
-            title="Endpoint verified onchain"
-            className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[#9d9d9d]"
-          >
-            <svg
-              aria-hidden="true"
-              width="11"
-              height="11"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="9" />
-              <path d="m8.4 12.4 2.6 2.6 4.6-5.2" />
-            </svg>
-            Verified
-          </span>
-        )}
+
       </div>
     </Link>
   );

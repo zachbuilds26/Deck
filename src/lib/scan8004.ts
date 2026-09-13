@@ -885,13 +885,41 @@ async function resolveVerifiedAgents(
 }
 
 /**
+ * Editorial leaders: the three featured cards, in order. Proof-first faces
+ * for the marketplace — everything else interleaves below them.
+ */
+const FEATURED_IDS = ["337848", "302257", "49637"];
+
+/** Deterministic shuffle (mulberry32, fixed seed). Breaks alphabetical runs
+ *  (half this pool starts with B) before the interleave below, which only
+ *  separates same-family neighbours. Stable forever for the same pool. */
+const SHUFFLE_SEED = 0xdec4;
+
+function seededShuffle<T>(items: T[]): T[] {
+  const next = [...items];
+  let seed = SHUFFLE_SEED;
+  const rand = () => {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  for (let i = next.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rand() * (i + 1));
+    [next[i], next[j]] = [next[j], next[i]];
+  }
+  return next;
+}
+
+/**
  * Family interleave, deterministic. Same-family fleets (twenty-five BORTs)
- * arrive clustered from shared infra, and no random shuffle spreads a 25/49
- * majority — chance keeps dealing BORT-after-BORT. Round-robin across name
- * families instead, always preferring a family different from the last card,
- * so consecutive same-family cards only happen when nothing else remains.
- * Stable forever for the same pool: pagination slices a frozen array, and the
- * order never reshuffles under a scrolling reader.
+ * arrive clustered from shared infra and read as spam in a row, so the tail
+ * is dealt round-robin across name families, always preferring a family
+ * different from the last card. Consecutive same-family cards only happen
+ * when nothing else remains. Stable forever for the same pool: pagination
+ * slices a frozen array, and the order never reshuffles under a scrolling
+ * reader.
  */
 function familyOf(agent: Agent): string {
   const first = agent.name.trim().split(/\s+/)[0];
@@ -1002,13 +1030,17 @@ export async function listAgents(params?: {
         .filter((agent) => isQualityAgent(agent, chainId))
         .filter((agent) => matchesMarketplaceCategory(agent, params?.category));
       entry.agents.sort(rankMarketplaceAgents);
-      entry.agents = avatarsFirst(deduplicateMarketplaceAgents(entry.agents));
-      // Leaders pinned, tail interleaved: the top of the ranked order stays
-      // put (proof first, always), everything below spreads by family so the
-      // BORT fleet stops reading as consecutive spam.
-      const [first, second, ...tail] = entry.agents;
-      const head = [first, second].filter((agent): agent is Agent => Boolean(agent));
-      entry.agents = [...head, ...interleaveFamilies(tail)];
+      const ranked = avatarsFirst(deduplicateMarketplaceAgents(entry.agents));
+      // Featured head, shuffled-and-interleaved tail: the three editorial
+      // leaders stay put in order, everything below is seeded-shuffled (so
+      // same-letter runs break up) then interleaved by family (so same-family
+      // neighbours vanish outside true majorities).
+      const featured = FEATURED_IDS.map((tokenId) =>
+        ranked.find((agent) => displayAgentId(agent.agentId) === tokenId)
+      ).filter((agent): agent is Agent => Boolean(agent));
+      const featuredIds = new Set(featured.map((agent) => agent.agentId));
+      const tail = ranked.filter((agent) => !featuredIds.has(agent.agentId));
+      entry.agents = [...featured, ...interleaveFamilies(seededShuffle(tail))];
       entry.filled = true;
     }
   }
