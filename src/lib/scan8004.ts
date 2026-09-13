@@ -884,6 +884,47 @@ async function resolveVerifiedAgents(
   return { agents: [...resolved.values()], failed };
 }
 
+/**
+ * Family interleave, deterministic. Same-family fleets (twenty-five BORTs)
+ * arrive clustered from shared infra, and no random shuffle spreads a 25/49
+ * majority — chance keeps dealing BORT-after-BORT. Round-robin across name
+ * families instead, always preferring a family different from the last card,
+ * so consecutive same-family cards only happen when nothing else remains.
+ * Stable forever for the same pool: pagination slices a frozen array, and the
+ * order never reshuffles under a scrolling reader.
+ */
+function familyOf(agent: Agent): string {
+  const first = agent.name.trim().split(/\s+/)[0];
+  return (first || agent.name).toUpperCase();
+}
+
+function interleaveFamilies(agents: Agent[]): Agent[] {
+  const groups = new Map<string, Agent[]>();
+  for (const agent of agents) {
+    const key = familyOf(agent);
+    const group = groups.get(key);
+    if (group) group.push(agent);
+    else groups.set(key, [agent]);
+  }
+  const queues = [...groups.values()];
+  const out: Agent[] = [];
+  let last = "";
+  while (out.length < agents.length) {
+    queues.sort((a, b) => b.length - a.length);
+    const pick =
+      queues.find((queue) => {
+        const head = queue[0];
+        return head !== undefined && queue.length > 0 && familyOf(head) !== last;
+      }) ?? queues.find((queue) => queue.length > 0);
+    if (!pick) break;
+    const next = pick.shift();
+    if (!next) break;
+    out.push(next);
+    last = familyOf(next);
+  }
+  return out;
+}
+
 // ============================================
 // PUBLIC API
 // ============================================
@@ -962,6 +1003,12 @@ export async function listAgents(params?: {
         .filter((agent) => matchesMarketplaceCategory(agent, params?.category));
       entry.agents.sort(rankMarketplaceAgents);
       entry.agents = avatarsFirst(deduplicateMarketplaceAgents(entry.agents));
+      // Leaders pinned, tail interleaved: the top of the ranked order stays
+      // put (proof first, always), everything below spreads by family so the
+      // BORT fleet stops reading as consecutive spam.
+      const [first, second, ...tail] = entry.agents;
+      const head = [first, second].filter((agent): agent is Agent => Boolean(agent));
+      entry.agents = [...head, ...interleaveFamilies(tail)];
       entry.filled = true;
     }
   }
