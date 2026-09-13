@@ -309,8 +309,11 @@ export default function HomePage() {
         </div>
         {/* Full viewport height so the filter bar sits below the fold — the
             filters only appear once you scroll into the agent list. */}
-        {/* Heavier bottom padding lifts the optical center toward the header. */}
-        <div className="relative z-10 mx-auto flex min-h-[calc(100svh-72px)] max-w-[1440px] flex-col justify-center px-5 pb-28 pt-16 text-center sm:px-8 lg:px-12">
+        {/* Full-viewport hero is a desktop pattern: on phones the same min-height
+            leaves a void above a small content stack (see the mobile gap), so
+            mobile gets a compact hero and the viewport treatment starts at sm.
+            Bottom-heavy padding keeps the optical center toward the header. */}
+        <div className="relative z-10 mx-auto flex max-w-[1440px] flex-col justify-center px-5 pb-16 pt-16 text-center sm:min-h-[calc(100svh-72px)] sm:px-8 sm:pb-28 lg:px-12">
           <div className="mb-5 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-2">
             <BrandStack ids={TRACK_LOGOS} size={22} priority />
             {/* leading-none, or the 11px text carries half a line of slack above
